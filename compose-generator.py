@@ -6,6 +6,10 @@ services:
     container_name: server
     image: server:latest
     entrypoint: python3 /main.py
+    volumes:
+      - type: bind
+        source: ./server/config.ini
+        target: /config.ini
     environment:
       - PYTHONUNBUFFERED=1
       - LOGGING_LEVEL=DEBUG
@@ -17,6 +21,10 @@ CLIENT_TEMPLATE="""  client{client_id}:
     container_name: client{client_id}
     image: client:latest
     entrypoint: /client
+    volumes:
+      - type: bind
+        source: ./client/config.yaml
+        target: /config.yaml
     environment:
       - CLI_ID={client_id}
       - CLI_LOG_LEVEL=DEBUG
