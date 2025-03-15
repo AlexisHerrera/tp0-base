@@ -12,7 +12,6 @@ services:
         target: /config.ini
     environment:
       - PYTHONUNBUFFERED=1
-      - LOGGING_LEVEL=DEBUG
     networks:
       - testing_net
 """
@@ -27,7 +26,6 @@ CLIENT_TEMPLATE="""  client{client_id}:
         target: /config.yaml
     environment:
       - CLI_ID={client_id}
-      - CLI_LOG_LEVEL=DEBUG
     networks:
       - testing_net
     depends_on:
