@@ -12,13 +12,13 @@ class Server:
         signal.signal(signal.SIGTERM, self.exit_gracefully)
 
     def exit_gracefully(self, signum, frame):
-        logging.info('action: SIGTERM received')
+        logging.info(f'action: SIGTERM_received | result: success | signum: {signum}')
         self._alive=False
         try:
             # Close server socket blocked in accept
             # This may leave client connections alive, so closing those file descriptors is needed
             self._server_socket.close()
-            logging.info("action: socket close | result: success")
+            logging.info("action: socket_close | result: success")
         except Exception as e:
             logging.error("action: socket close | result: fail | error: {e}", e)
 
