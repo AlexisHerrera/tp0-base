@@ -104,6 +104,10 @@ func (c *Client) StartClientLoop(ctx context.Context) {
 		log.Infof("action: socket_closed | result: success | client_id: %v", c.config.ID)
 
 		if err != nil {
+		    if errors.Is(err, context.Canceled) {
+                log.Infof("action: receive_message | result: cancelled | client_id: %v", c.config.ID)
+                return
+            }
 			log.Errorf("action: receive_message | result: fail | client_id: %v | error: %v",
 				c.config.ID,
 				err,
