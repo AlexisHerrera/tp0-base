@@ -1,8 +1,4 @@
 #!/bin/bash
 
-COMPOSE_FILE="docker-compose-dev.yaml"
-
-if [ -n "$(docker compose -f $COMPOSE_FILE ps -q)" ]; then
-  result=$(docker compose -f $COMPOSE_FILE run --rm netcat-test 2>&1 | tail -n 1)
-  echo "$result"
-fi
+result=$(docker run --rm --env-file ./netcat-test/config.env --network tp0_testing_net netcat-test:latest | tail -n 1)
+echo "$result"

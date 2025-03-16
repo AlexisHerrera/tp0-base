@@ -13,15 +13,6 @@ services:
     networks:
       - testing_net
 
-  netcat-test:
-    container_name: netcat-test
-    image: netcat-test:latest
-    env_file: ./netcat-test/config.env
-    networks:
-      - testing_net
-    depends_on:
-      - server
-
   client1:
     container_name: client1
     image: client:latest

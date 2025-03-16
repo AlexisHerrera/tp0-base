@@ -14,15 +14,6 @@ services:
       - PYTHONUNBUFFERED=1
     networks:
       - testing_net
-
-  netcat-test:
-    container_name: netcat-test
-    image: netcat-test:latest
-    env_file: ./netcat-test/config.env
-    networks:
-      - testing_net
-    depends_on:
-      - server
 """
 
 CLIENT_TEMPLATE="""  client{client_id}:
