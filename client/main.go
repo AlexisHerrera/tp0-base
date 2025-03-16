@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/op/go-logging"
@@ -108,11 +110,11 @@ func main() {
 	defer cancel()
 
 	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT)
+	signal.Notify(sigChan, syscall.SIGTERM)
 
 	go func() {
 		sig := <-sigChan
-		common.Log.Infof("action: SIGTERM_received | result: success | client_id: %v", c.config.ID)
+		log.Infof("action: SIGTERM_received (%v) | result: success", sig)
 		cancel()
 	}()
 
