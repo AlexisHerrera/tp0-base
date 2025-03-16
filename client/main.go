@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -103,6 +104,9 @@ func main() {
 	// Print program config with debugging purposes
 	PrintConfig(v)
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	clientConfig := common.ClientConfig{
 		ServerAddress: v.GetString("server.address"),
 		ID:            v.GetString("id"),
@@ -111,5 +115,5 @@ func main() {
 	}
 
 	client := common.NewClient(clientConfig)
-	client.StartClientLoop()
+	client.StartClientLoop(ctx)
 }
