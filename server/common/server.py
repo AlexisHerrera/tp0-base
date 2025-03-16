@@ -11,7 +11,7 @@ class Server:
         self._alive = True
         signal.signal(signal.SIGTERM, self.exit_gracefully)
 
-    def exit_gracefully(self):
+    def exit_gracefully(self, signum, frame):
         logging.info('action: SIGTERM received')
         self._alive=False
         try:
