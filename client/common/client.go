@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"errors"
-	"fmt"
 	"net"
 	"time"
 
@@ -19,6 +18,7 @@ type ClientConfig struct {
 	ServerAddress string
 	LoopAmount    int
 	LoopPeriod    time.Duration
+	Apuesta       Apuesta
 }
 
 // Client Entity that encapsulates how
@@ -77,6 +77,18 @@ func readStringWithContext(ctx context.Context, conn net.Conn) (string, error) {
 	}
 }
 
+func writeFull(conn net.Conn, data []byte) error {
+	total := 0
+	for total < len(data) {
+		n, err := conn.Write(data[total:])
+		if err != nil {
+			return err
+		}
+		total += n
+	}
+	return nil
+}
+
 // StartClientLoop Send messages to the client until some time threshold is met
 func (c *Client) StartClientLoop(ctx context.Context) {
 	// There is an autoincremental msgID to identify every message sent
@@ -92,13 +104,21 @@ func (c *Client) StartClientLoop(ctx context.Context) {
 		// Create the connection the server in every loop iteration. Send an
 		c.createClientSocket()
 
-		// TODO: Modify the send to avoid short-write
-		fmt.Fprintf(
-			c.conn,
-			"[CLIENT %v] Message N°%v\n",
-			c.config.ID,
-			msgID,
-		)
+		// Load config and serializes it
+		msgBytes, err := SerializeApuesta(c.config.Apuesta)
+		if err != nil {
+			log.Errorf("action: serialize_apuesta | result: fail | client_id: %v | error: %v", c.config.ID, err)
+			c.conn.Close()
+			return
+		}
+
+		// Writes every byte, fails otherwise
+		if err := writeFull(c.conn, msgBytes); err != nil {
+			log.Errorf("action: send_apuesta | result: fail | client_id: %v | error: %v", c.config.ID, err)
+			c.conn.Close()
+			return
+		}
+
 		// Handles context cancel, error and successful reads.
 		msg, err := readStringWithContext(ctx, c.conn)
 		c.conn.Close()
@@ -120,7 +140,7 @@ func (c *Client) StartClientLoop(ctx context.Context) {
 			c.config.ID,
 			msg,
 		)
-
+		log.Infof("action: apuesta_enviada | result: success | dni: %v | numero: %v", c.config.Apuesta.Documento, c.config.Apuesta.Numero)
 		// Wait a time between sending one message and the next one
 		select {
 		case <-ctx.Done():
