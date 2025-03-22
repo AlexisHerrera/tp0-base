@@ -12,6 +12,10 @@ class Apuesta:
         self.nacimiento = nacimiento
         self.numero = numero
 
+    def __repr__(self):
+        return (f"Apuesta(nombre={self.nombre}, apellido={self.apellido}, "
+                f"documento={self.documento}, nacimiento={self.nacimiento}, "
+                f"numero={self.numero})")
 
 def serialize_apuesta(apuesta: Apuesta) -> bytes:
     result = bytearray()

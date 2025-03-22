@@ -2,6 +2,34 @@ import socket
 import logging
 import signal
 
+from commmon.protocol import deserialize_apuesta, Apuesta
+from common.utils import store_bets, Bet
+
+def read_all(conn: socket.socket) -> bytes:
+    data = bytearray()
+    while True:
+        try:
+            chunk = conn.recv(1024)
+            if not chunk:
+                break
+            data.extend(chunk)
+        except socket.error as e:
+            logging.error("Socket read error: %s", e)
+            break
+    return bytes(data)
+
+def write_full(conn: socket.socket, data: bytes) -> None:
+    total_sent = 0
+    while total_sent < len(data):
+        try:
+            sent = conn.send(data[total_sent:])
+            if sent == 0:
+                raise RuntimeError("Connection closed")
+            total_sent += sent
+        except socket.error as e:
+            logging.error("Socket write error: %s", e)
+            raise
+
 class Server:
     def __init__(self, port, listen_backlog):
         # Initialize server socket
@@ -50,12 +78,25 @@ class Server:
         client socket will also be closed
         """
         try:
-            # TODO: Modify the receive to avoid short-reads
-            msg = client_sock.recv(1024).rstrip().decode('utf-8')
+            data = read_all(client_sock)
+            if not data:
+                logging.error("action: receive_message | result: fail | error: no data received")
+                return
+            apuesta = deserialize_apuesta(data)
             addr = client_sock.getpeername()
-            logging.info(f'action: receive_message | result: success | ip: {addr[0]} | msg: {msg}')
-            # TODO: Modify the send to avoid short-writes
-            client_sock.send("{}\n".format(msg).encode('utf-8'))
+            logging.info(f"action: receive_message | result: success | msg: {apuesta} | ip: {addr[0]}")
+            bet = Bet(
+            agency=str(0),
+            first_name=apuesta.nombre,
+            last_name=apuesta.apellido,
+            document=apuesta.documento,
+            birthdate=apuesta.nacimiento,
+            number=apuesta.numero
+            )
+            store_bets([bet])
+            logging.info(f"action: apuesta_almacenada | result: success | dni: {apuesta.documento} | numero: {apuesta.numero}")
+            confirmation = "OK\n".encode("utf-8")
+            write_full(client_sock, confirmation)
         except OSError as e:
             logging.error(f"action: receive_message | result: fail | error: {e}")
         finally:
