@@ -42,11 +42,11 @@ func InitConfig() (*viper.Viper, error) {
 	v.BindEnv("log", "level")
 
 	// Apuestas
-	v.BindEnv("apuesta", "nombre")
-	v.BindEnv("apuesta", "apellido")
-	v.BindEnv("apuesta", "documento")
-	v.BindEnv("apuesta", "nacimiento")
-	v.BindEnv("apuesta", "numero")
+	v.BindEnv("NOMBRE")
+	v.BindEnv("APELLIDO")
+	v.BindEnv("DOCUMENTO")
+	v.BindEnv("NACIMIENTO")
+	v.BindEnv("NUMERO")
 
 	// Try to read configuration from config file. If config file
 	// does not exists then ReadInConfig will fail but configuration
@@ -91,13 +91,19 @@ func InitLogger(logLevel string) error {
 // PrintConfig Print all the configuration parameters of the program.
 // For debugging purposes only
 func PrintConfig(v *viper.Viper) {
-	log.Infof("action: config | result: success | client_id: %s | server_address: %s | loop_amount: %v | loop_period: %v | log_level: %s | apuesta_nombre: %s",
+	log.Infof("action: config | result: success | client_id: %s | server_address: %s | loop_amount: %v | loop_period: %v | log_level: %s",
 		v.GetString("id"),
 		v.GetString("server.address"),
 		v.GetInt("loop.amount"),
 		v.GetDuration("loop.period"),
 		v.GetString("log.level"),
+	)
+	log.Infof("action: config_bets | result: success | nombre: %s | apellido: %s | documento: %s | nacimiento: %s | numero: %s",
 		v.GetString("NOMBRE"),
+		v.GetString("APELLIDO"),
+		v.GetString("DOCUMENTO"),
+		v.GetString("NACIMIENTO"),
+		v.GetString("NUMERO"),
 	)
 }
 

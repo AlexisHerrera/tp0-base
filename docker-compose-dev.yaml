@@ -23,6 +23,7 @@ services:
         target: /config.yaml
     environment:
       - CLI_ID=1
+      - NACIMIENTO=1999-03-17
     networks:
       - testing_net
     depends_on:
