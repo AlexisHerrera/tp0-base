@@ -26,11 +26,11 @@ CLIENT_TEMPLATE="""  client{client_id}:
         target: /config.yaml
     environment:
       - CLI_ID={client_id}
-      - NOMBRE=Santiago Lionel
-      - APELLIDO=Lorca
-      - DOCUMENTO=30904465
-      - NACIMIENTO=1999-03-17
-      - NUMERO=7574
+      - CLI_NOMBRE=Santiago Lionel
+      - CLI_APELLIDO=Lorca
+      - CLI_DOCUMENTO=30904465
+      - CLI_NACIMIENTO=1999-03-17
+      - CLI_NUMERO=7574
     networks:
       - testing_net
     depends_on:
