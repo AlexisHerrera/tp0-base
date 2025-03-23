@@ -2,8 +2,8 @@ import socket
 import logging
 import signal
 
-from server.common.protocol import deserialize_apuesta
-from server.common.utils import store_bets, Bet
+from protocol import deserialize_apuesta
+from utils import store_bets, Bet
 
 
 def read_all(conn: socket.socket) -> bytes:
