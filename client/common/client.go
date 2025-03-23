@@ -1,9 +1,10 @@
 package common
 
 import (
-	"bufio"
+	"bytes"
 	"context"
 	"errors"
+	"io"
 	"net"
 	"time"
 
@@ -52,18 +53,38 @@ func (c *Client) createClientSocket() error {
 	return nil
 }
 
-func readStringWithContext(ctx context.Context, conn net.Conn) (string, error) {
+func readLineWithContext(ctx context.Context, conn net.Conn, bufferSize int) (string, error) {
 	readCh := make(chan string, 1)
 	errCh := make(chan error, 1)
 
 	// Runs concurrently
 	go func() {
-		msg, err := bufio.NewReader(conn).ReadString('\n')
-		if err != nil {
-			errCh <- err
-			return
+		buffer := make([]byte, bufferSize)
+		var message []byte
+
+		for {
+			n, err := conn.Read(buffer)
+			if n > 0 {
+				chunk := buffer[:n]
+				message = append(message, chunk...)
+
+				// If chunk contains newline, stops reading
+				if bytes.Contains(chunk, []byte{'\n'}) {
+					readCh <- string(message)
+					return
+				}
+			}
+
+			if err != nil {
+				if err == io.EOF {
+					readCh <- string(message)
+					return
+				}
+
+				errCh <- err
+				return
+			}
 		}
-		readCh <- msg
 	}()
 
 	select {
@@ -120,7 +141,7 @@ func (c *Client) StartClientLoop(ctx context.Context) {
 		}
 
 		// Handles context cancel, error and successful reads.
-		msg, err := readStringWithContext(ctx, c.conn)
+		msg, err := readLineWithContext(ctx, c.conn, 1024)
 		c.conn.Close()
 		log.Infof("action: socket_closed | result: success | client_id: %v", c.config.ID)
 
