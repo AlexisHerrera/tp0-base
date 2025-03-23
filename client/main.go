@@ -97,7 +97,7 @@ func PrintConfig(v *viper.Viper) {
 		v.GetInt("loop.amount"),
 		v.GetDuration("loop.period"),
 		v.GetString("log.level"),
-		v.GetString("apuesta.nombre"),
+		v.GetString("NOMBRE"),
 	)
 }
 
@@ -132,11 +132,11 @@ func main() {
 		LoopAmount:    v.GetInt("loop.amount"),
 		LoopPeriod:    v.GetDuration("loop.period"),
 		Apuesta: common.Apuesta{
-			Nombre:     v.GetString("apuesta.nombre"),
-			Apellido:   v.GetString("apuesta.apellido"),
-			Documento:  v.GetString("apuesta.documento"),
-			Nacimiento: v.GetString("apuesta.nacimiento"),
-			Numero:     v.GetString("apuesta.numero"),
+			Nombre:     v.GetString("NOMBRE"),
+			Apellido:   v.GetString("APELLIDO"),
+			Documento:  v.GetString("DOCUMENTO"),
+			Nacimiento: v.GetString("NACIMIENTO"),
+			Numero:     v.GetString("NUMERO"),
 		},
 	}
 

@@ -26,6 +26,7 @@ CLIENT_TEMPLATE="""  client{client_id}:
         target: /config.yaml
     environment:
       - CLI_ID={client_id}
+      - NACIMIENTO=1999-03-17
     networks:
       - testing_net
     depends_on:
