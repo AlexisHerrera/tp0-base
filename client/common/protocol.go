@@ -80,6 +80,19 @@ func SerializeApuesta(apuesta Apuesta) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+func SerializeApuestaWithLength(apuesta Apuesta) ([]byte, error) {
+    msg, err := SerializeApuesta(apuesta)
+	if err != nil {
+		return msg, err
+	}
+    total := len(msg)
+	// Header will always be 4 bytes
+    header := make([]byte, 4)
+    binary.BigEndian.PutUint32(header, uint32(total))
+    return append(header, msg...), nil
+}
+
+
 func DeserializeApuesta(data []byte) (Apuesta, error) {
 	var apuesta Apuesta
 	buf := bytes.NewBuffer(data)

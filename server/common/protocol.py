@@ -17,6 +17,7 @@ class Apuesta:
                 f"documento={self.documento}, nacimiento={self.nacimiento}, "
                 f"numero={self.numero})")
 
+
 def serialize_apuesta(apuesta: Apuesta) -> bytes:
     result = bytearray()
 

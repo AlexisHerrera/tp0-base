@@ -126,12 +126,13 @@ func (c *Client) StartClientLoop(ctx context.Context) {
 		c.createClientSocket()
 
 		// Load config and serializes it
-		msgBytes, err := SerializeApuesta(c.config.Apuesta)
+		msgBytes, err := SerializeApuestaWithLength(c.config.Apuesta)
 		if err != nil {
 			log.Errorf("action: serialize_apuesta | result: fail | client_id: %v | error: %v", c.config.ID, err)
 			c.conn.Close()
 			return
 		}
+		log.Info("action: serialize_apuesta | result: success")
 
 		// Writes every byte, fails otherwise
 		if err := writeFull(c.conn, msgBytes); err != nil {
@@ -139,6 +140,7 @@ func (c *Client) StartClientLoop(ctx context.Context) {
 			c.conn.Close()
 			return
 		}
+		log.Info("action: send_apuesta | result: success")
 
 		// Handles context cancel, error and successful reads.
 		msg, err := readLineWithContext(ctx, c.conn, 1024)

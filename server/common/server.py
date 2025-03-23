@@ -2,35 +2,9 @@ import socket
 import logging
 import signal
 
+from .communication import read_bet_as_bytes, write_full
 from .protocol import deserialize_apuesta
 from .utils import store_bets, Bet
-
-
-def read_all(conn: socket.socket) -> bytes:
-    data = bytearray()
-    while True:
-        try:
-            chunk = conn.recv(1024)
-            if not chunk:
-                break
-            data.extend(chunk)
-        except socket.error as e:
-            logging.error("Socket read error: %s", e)
-            break
-    return bytes(data)
-
-
-def write_full(conn: socket.socket, data: bytes) -> None:
-    total_sent = 0
-    while total_sent < len(data):
-        try:
-            sent = conn.send(data[total_sent:])
-            if sent == 0:
-                raise RuntimeError("Connection closed")
-            total_sent += sent
-        except socket.error as e:
-            logging.error("Socket write error: %s", e)
-            raise
 
 
 class Server:
@@ -82,11 +56,12 @@ class Server:
         client socket will also be closed
         """
         try:
-            data = read_all(client_sock)
-            if not data:
+            bet_bytes = read_bet_as_bytes(client_sock)
+            if not bet_bytes:
                 logging.error("action: receive_message | result: fail | error: no data received")
                 return
-            apuesta = deserialize_apuesta(data)
+            logging.info(f"action: receive_message | result: success | data received: {bet_bytes}")
+            apuesta = deserialize_apuesta(bet_bytes)
             addr = client_sock.getpeername()
             logging.info(f"action: receive_message | result: success | msg: {apuesta} | ip: {addr[0]}")
             bet = Bet(
