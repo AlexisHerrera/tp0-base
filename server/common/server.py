@@ -2,8 +2,9 @@ import socket
 import logging
 import signal
 
-from commmon.protocol import deserialize_apuesta, Apuesta
-from common.utils import store_bets, Bet
+from server.common.protocol import deserialize_apuesta
+from server.common.utils import store_bets, Bet
+
 
 def read_all(conn: socket.socket) -> bytes:
     data = bytearray()
@@ -18,6 +19,7 @@ def read_all(conn: socket.socket) -> bytes:
             break
     return bytes(data)
 
+
 def write_full(conn: socket.socket, data: bytes) -> None:
     total_sent = 0
     while total_sent < len(data):
@@ -30,6 +32,7 @@ def write_full(conn: socket.socket, data: bytes) -> None:
             logging.error("Socket write error: %s", e)
             raise
 
+
 class Server:
     def __init__(self, port, listen_backlog):
         # Initialize server socket
@@ -39,9 +42,9 @@ class Server:
         self._alive = True
         signal.signal(signal.SIGTERM, self.exit_gracefully)
 
-    def exit_gracefully(self, signum, frame):
+    def exit_gracefully(self, signum, _frame):
         logging.info(f'action: SIGTERM_received | result: success | signum: {signum}')
-        self._alive=False
+        self._alive = False
         try:
             # Close server socket blocked in accept
             # This may leave client connections alive, so closing those file descriptors is needed
@@ -70,7 +73,8 @@ class Server:
                     logging.error("action: loop stopped | result: fail | error: %s", e)
                     break
 
-    def __handle_client_connection(self, client_sock):
+    @staticmethod
+    def __handle_client_connection(client_sock):
         """
         Read message from a specific client socket and closes the socket
 
@@ -86,15 +90,16 @@ class Server:
             addr = client_sock.getpeername()
             logging.info(f"action: receive_message | result: success | msg: {apuesta} | ip: {addr[0]}")
             bet = Bet(
-            agency=str(0),
-            first_name=apuesta.nombre,
-            last_name=apuesta.apellido,
-            document=apuesta.documento,
-            birthdate=apuesta.nacimiento,
-            number=apuesta.numero
+                agency=str(0),
+                first_name=apuesta.nombre,
+                last_name=apuesta.apellido,
+                document=apuesta.documento,
+                birthdate=apuesta.nacimiento,
+                number=apuesta.numero
             )
             store_bets([bet])
-            logging.info(f"action: apuesta_almacenada | result: success | dni: {apuesta.documento} | numero: {apuesta.numero}")
+            logging.info(
+                f"action: apuesta_almacenada | result: success | dni: {apuesta.documento} | numero: {apuesta.numero}")
             confirmation = "OK\n".encode("utf-8")
             write_full(client_sock, confirmation)
         except OSError as e:
