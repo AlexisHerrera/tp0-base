@@ -34,6 +34,12 @@ func ReadPacket(conn net.Conn) (*Packet, error) {
 	return &Packet{Data: data}, nil
 }
 
+func (p *Packet) Bytes() []byte {
+	header := make([]byte, 4)
+	binary.BigEndian.PutUint32(header, uint32(len(p.Data)))
+	return append(header, p.Data...)
+}
+
 func writeFull(conn net.Conn, data []byte) error {
 	total := 0
 	for total < len(data) {

@@ -1,11 +1,10 @@
 import socket
 import logging
 import signal
-import time
 
-from .protocol import deserialize_apuesta
 from .utils import store_bets, Bet
 from .packet import *
+from .protocol import deserialize_apuesta
 
 class Server:
     def __init__(self, port, listen_backlog):
@@ -56,22 +55,16 @@ class Server:
         client socket will also be closed
         """
         try:
-            packet: Packet = Packet.from_socket(client_sock)
-            logging.info(f"action: receive_message | result: success | data received: {len(packet.data)} bytes")
-            apuesta = deserialize_apuesta(packet.data)
+            batch_packet: Packet = Packet.read_packet(client_sock)
             addr = client_sock.getpeername()
-            logging.info(f"action: receive_message | result: success | msg: {apuesta} | ip: {addr[0]}")
-            bet = Bet(
-                agency=str(0),
-                first_name=apuesta.nombre,
-                last_name=apuesta.apellido,
-                document=apuesta.documento,
-                birthdate=apuesta.nacimiento,
-                number=apuesta.numero
-            )
-            store_bets([bet])
-            logging.info(
-                f"action: apuesta_almacenada | result: success | dni: {apuesta.documento} | numero: {apuesta.numero}")
+            logging.info(f"action: receive_message | result: success | ip: {addr[0]} | data received: {len(batch_packet.data)} bytes")
+            packets: list[Packet] = batch_packet.deserialize_batch()
+            bets = packets_to_bets(packets)
+            if len(bets) == len(packets):
+                logging.info(f"action: apuesta_recibida | result: success | cantidad: {len(bets)}")
+            else:
+                logging.error(f"action: apuesta_recibida | result: fail | cantidad: ${len(bets)}")
+            store_bets(bets)
             confirmationPacket = Packet("OK\n".encode("utf-8"))
             confirmationPacket.write(client_sock)
         except OSError as e:
@@ -79,7 +72,7 @@ class Server:
         finally:
             client_sock.close()
             logging.info('action: client_sock close | result: success')
-
+    
     def __accept_new_connection(self):
         """
         Accept new connections
@@ -93,3 +86,14 @@ class Server:
         c, addr = self._server_socket.accept()
         logging.info(f'action: accept_connections | result: success | ip: {addr[0]}')
         return c
+
+def packets_to_bets(packets: list[Packet]) -> list[Bet]:
+    bets: list[Bet] = []
+    for packet in packets:
+        try:
+            apuesta = deserialize_apuesta(packet.data)
+            bet = Bet('0', apuesta.nombre, apuesta.apellido, apuesta.documento, apuesta.nacimiento, apuesta.numero)
+            bets.append(bet)
+        except ValueError as e:
+            logging.error(f"action: deserialize_apuesta | result: fail | error: {e}")
+    return bets

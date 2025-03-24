@@ -1,28 +1,35 @@
-import logging
 import socket
+from io import BytesIO
+from typing import Union
+
 
 
 class Packet:
     def __init__(self, data: bytes):
         self.data = data
 
-    # Creates a Packet from a socket
-    @staticmethod
-    def from_socket(conn: socket.socket) -> 'Packet':
-        """Expects a header of 4 bytes, then reads the expected bytes"""
-        header = Packet.read_exact(conn, 4)
+    @classmethod
+    def read_packet(cls, stream: Union[socket.socket, BytesIO]) -> 'Packet':
+        header = cls.read_exact(stream, 4)
         total_length = int.from_bytes(header, byteorder="big")
-        data = Packet.read_exact(conn, total_length)
-        return Packet(data)
-    
-    def read_exact(conn: socket.socket, n: int) -> bytes:
-        """Read exactly n bytes from a socket, this avoids short reads"""
+        data = cls.read_exact(stream, total_length)
+        return cls(data)
+
+    @staticmethod
+    def read_exact(source: Union[socket.socket, BytesIO], n: int) -> bytes:
         data = bytearray()
-        while len(data) < n:
-            chunk = conn.recv(n - len(data))
-            if not chunk:
-                raise RuntimeError("Connection closed before reading expected bytes")
-            data.extend(chunk)
+        if hasattr(source, "recv"):
+            while len(data) < n:
+                chunk = source.recv(n - len(data))
+                if not chunk:
+                    raise RuntimeError("Connection closed before reading expected bytes")
+                data.extend(chunk)
+        else:
+            while len(data) < n:
+                chunk = source.read(n - len(data))
+                if not chunk:
+                    raise RuntimeError("EOF reached before reading expected bytes")
+                data.extend(chunk)
         return bytes(data)
     
     def write(self, conn: socket.socket) -> None:
@@ -35,3 +42,19 @@ class Packet:
             if sent == 0:
                 raise RuntimeError("Connection closed")
             total_sent += sent
+    
+    def deserialize_batch(self) -> list['Packet']:
+        """
+        Deserializes a batch of packets from the current packet data
+        """
+        stream = BytesIO(self.data)
+        bytesList: list['Packet'] = []
+        total_length = len(self.data)
+
+        while stream.tell() < total_length:
+            if total_length - stream.tell() < 4:
+                break
+            sub_packet = Packet.read_packet(stream)
+            bytesList.append(sub_packet)
+
+        return bytesList

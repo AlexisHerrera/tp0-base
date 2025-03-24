@@ -96,8 +96,10 @@ func readBatchApuestasBytes(scanner *bufio.Scanner, maxAmount int, leftover *str
 		if err != nil {
 			return nil, 0, err
 		}
+		subpacket := NewPacket(serialized)
+		subPacketBytes := subpacket.Bytes()
 		// There is no need to check if the payload is too big, as it was already checked before
-		payload = append(payload, serialized...)
+		payload = append(payload, subPacketBytes...)
 		count++
 	}
 
@@ -115,9 +117,11 @@ func readBatchApuestasBytes(scanner *bufio.Scanner, maxAmount int, leftover *str
 			log.Errorf("action: serialize_apuesta | result: skip | error: apuesta exceeds max payload size: %v", line)
 			continue
 		}
+		subpacket := NewPacket(serialized)
+		subPacketBytes := subpacket.Bytes()
 		// Checks if the payload is too big
-		if len(payload)+len(serialized) <= maxPayloadSize {
-			payload = append(payload, serialized...)
+		if len(payload)+len(subPacketBytes) <= maxPayloadSize {
+			payload = append(payload, subPacketBytes...)
 			count++
 		} else {
 			*leftover = line
@@ -161,7 +165,7 @@ func (c *Client) StartClientLoop(ctx context.Context) {
 			log.Infof("action: no_more_apuestas | result: finish | client_id: %v", c.config.ID)
 			return
 		}
-		log.Infof("action: batch_read | result: success | client_id: %v | bets_sent: %d", c.config.ID, len(msgData))
+		log.Infof("action: batch_read | result: success | client_id: %v | bets_sent: %d", c.config.ID, batchCount)
 		// Create the connection the server in every loop iteration. Send an
 		c.createClientSocket()
 
