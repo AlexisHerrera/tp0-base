@@ -1,6 +1,7 @@
 import socket
 import logging
 import signal
+import time
 
 from .protocol import deserialize_apuesta
 from .utils import store_bets, Bet
@@ -56,7 +57,7 @@ class Server:
         """
         try:
             packet: Packet = Packet.from_socket(client_sock)
-            logging.info(f"action: receive_message | result: success | data received: {packet}")
+            logging.info(f"action: receive_message | result: success | data received: {len(packet.data)} bytes")
             apuesta = deserialize_apuesta(packet.data)
             addr = client_sock.getpeername()
             logging.info(f"action: receive_message | result: success | msg: {apuesta} | ip: {addr[0]}")

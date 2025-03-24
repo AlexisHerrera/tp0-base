@@ -27,13 +27,11 @@ class Packet:
     
     def write(self, conn: socket.socket) -> None:
         """Writes the packet to the socket, this avoids short writes"""
+        header = len(self.data).to_bytes(4, byteorder="big")
+        full_data = header + self.data
         total_sent = 0
-        while total_sent < len(self.data):
-            try:
-                sent = conn.send(self.data[total_sent:])
-                if sent == 0:
-                    raise RuntimeError("Connection closed")
-                total_sent += sent
-            except socket.error as e:
-                logging.error("Socket write error: %s", e)
-                raise
+        while total_sent < len(full_data):
+            sent = conn.send(full_data[total_sent:])
+            if sent == 0:
+                raise RuntimeError("Connection closed")
+            total_sent += sent

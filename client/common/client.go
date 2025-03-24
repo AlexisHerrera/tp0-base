@@ -1,10 +1,8 @@
 package common
 
 import (
-	"bytes"
 	"context"
 	"errors"
-	"io"
 	"net"
 	"time"
 
@@ -53,61 +51,30 @@ func (c *Client) createClientSocket() error {
 	return nil
 }
 
-func readLineWithContext(ctx context.Context, conn net.Conn, bufferSize int) (string, error) {
-	readCh := make(chan string, 1)
+func readPacketData(ctx context.Context, conn net.Conn) ([]byte, error) {
+	readCh := make(chan *Packet, 1)
 	errCh := make(chan error, 1)
 
 	// Runs concurrently
 	go func() {
-		buffer := make([]byte, bufferSize)
-		var message []byte
-
-		for {
-			n, err := conn.Read(buffer)
-			if n > 0 {
-				chunk := buffer[:n]
-				message = append(message, chunk...)
-
-				// If chunk contains newline, stops reading
-				if bytes.Contains(chunk, []byte{'\n'}) {
-					readCh <- string(message)
-					return
-				}
-			}
-
-			if err != nil {
-				if err == io.EOF {
-					readCh <- string(message)
-					return
-				}
-
-				errCh <- err
-				return
-			}
+		// Usamos la función ReadPacket definida en packet.go
+		packet, err := ReadPacket(conn)
+		if err != nil {
+			errCh <- err
+			return
 		}
+		readCh <- packet
 	}()
 
 	select {
 	case <-ctx.Done():
 		// If context is cancelled, stops reading the buffer
-		return "", ctx.Err()
+		return nil, ctx.Err()
 	case err := <-errCh:
-		return "", err
-	case msg := <-readCh:
-		return msg, nil
+		return nil, err
+	case packet := <-readCh:
+		return packet.Data, nil
 	}
-}
-
-func writeFull(conn net.Conn, data []byte) error {
-	total := 0
-	for total < len(data) {
-		n, err := conn.Write(data[total:])
-		if err != nil {
-			return err
-		}
-		total += n
-	}
-	return nil
 }
 
 // StartClientLoop Send messages to the client until some time threshold is met
@@ -126,16 +93,17 @@ func (c *Client) StartClientLoop(ctx context.Context) {
 		c.createClientSocket()
 
 		// Load config and serializes it
-		msgBytes, err := SerializeApuestaWithLength(c.config.Apuesta)
+		msgData, err := SerializeApuesta(c.config.Apuesta)
 		if err != nil {
 			log.Errorf("action: serialize_apuesta | result: fail | client_id: %v | error: %v", c.config.ID, err)
 			c.conn.Close()
 			return
 		}
+		packet := NewPacket(msgData)
 		log.Info("action: serialize_apuesta | result: success")
 
 		// Writes every byte, fails otherwise
-		if err := writeFull(c.conn, msgBytes); err != nil {
+		if err := packet.Write(c.conn); err != nil {
 			log.Errorf("action: send_apuesta | result: fail | client_id: %v | error: %v", c.config.ID, err)
 			c.conn.Close()
 			return
@@ -143,9 +111,9 @@ func (c *Client) StartClientLoop(ctx context.Context) {
 		log.Info("action: send_apuesta | result: success")
 
 		// Handles context cancel, error and successful reads.
-		msg, err := readLineWithContext(ctx, c.conn, 1024)
-		c.conn.Close()
+		data, err := readPacketData(ctx, c.conn)
 		log.Infof("action: socket_closed | result: success | client_id: %v", c.config.ID)
+		c.conn.Close()
 
 		if err != nil {
 			if errors.Is(err, context.Canceled) {
@@ -161,7 +129,7 @@ func (c *Client) StartClientLoop(ctx context.Context) {
 
 		log.Infof("action: receive_message | result: success | client_id: %v | msg: %v",
 			c.config.ID,
-			msg,
+			string(data),
 		)
 		log.Infof("action: apuesta_enviada | result: success | dni: %v | numero: %v", c.config.Apuesta.Documento, c.config.Apuesta.Numero)
 		// Wait a time between sending one message and the next one
