@@ -12,7 +12,8 @@ import (
 )
 
 var log = logging.MustGetLogger("log")
-const maxPayloadSize = 8 * 1024 - 4
+
+const maxPayloadSize = 8*1024 - 4
 
 // ClientConfig Configuration used by the client
 type ClientConfig struct {
@@ -134,7 +135,6 @@ func readBatchApuestasBytes(scanner *bufio.Scanner, maxAmount int, leftover *str
 	return payload, count, nil
 }
 
-
 // StartClientLoop Send messages to the client until some time threshold is met
 func (c *Client) StartClientLoop(ctx context.Context) {
 	// There is an autoincremental msgID to identify every message sent
@@ -162,7 +162,6 @@ func (c *Client) StartClientLoop(ctx context.Context) {
 			return
 		}
 		if batchCount == 0 {
-			log.Infof("action: no_more_apuestas | result: finish | client_id: %v", c.config.ID)
 			return
 		}
 		log.Infof("action: batch_read | result: success | client_id: %v | bets_sent: %d", c.config.ID, batchCount)
