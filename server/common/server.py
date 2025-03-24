@@ -2,10 +2,9 @@ import socket
 import logging
 import signal
 
-from .communication import read_bet_as_bytes, write_full
 from .protocol import deserialize_apuesta
 from .utils import store_bets, Bet
-
+from .packet import *
 
 class Server:
     def __init__(self, port, listen_backlog):
@@ -56,12 +55,9 @@ class Server:
         client socket will also be closed
         """
         try:
-            bet_bytes = read_bet_as_bytes(client_sock)
-            if not bet_bytes:
-                logging.error("action: receive_message | result: fail | error: no data received")
-                return
-            logging.info(f"action: receive_message | result: success | data received: {bet_bytes}")
-            apuesta = deserialize_apuesta(bet_bytes)
+            packet: Packet = Packet.from_socket(client_sock)
+            logging.info(f"action: receive_message | result: success | data received: {packet}")
+            apuesta = deserialize_apuesta(packet.data)
             addr = client_sock.getpeername()
             logging.info(f"action: receive_message | result: success | msg: {apuesta} | ip: {addr[0]}")
             bet = Bet(
@@ -75,8 +71,8 @@ class Server:
             store_bets([bet])
             logging.info(
                 f"action: apuesta_almacenada | result: success | dni: {apuesta.documento} | numero: {apuesta.numero}")
-            confirmation = "OK\n".encode("utf-8")
-            write_full(client_sock, confirmation)
+            confirmationPacket = Packet("OK\n".encode("utf-8"))
+            confirmationPacket.write(client_sock)
         except OSError as e:
             logging.error(f"action: receive_message | result: fail | error: {e}")
         finally:
