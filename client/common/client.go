@@ -4,16 +4,15 @@ import (
 	"bufio"
 	"context"
 	"errors"
-	"fmt"
 	"net"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/op/go-logging"
 )
 
 var log = logging.MustGetLogger("log")
+const maxPayloadSize = 8 * 1024 - 4
 
 // ClientConfig Configuration used by the client
 type ClientConfig struct {
@@ -82,30 +81,55 @@ func readPacketData(ctx context.Context, conn net.Conn) ([]byte, error) {
 	}
 }
 
-func readBatchApuestas(scanner *bufio.Scanner, maxAmount int) ([]Apuesta, error) {
-	var apuestas []Apuesta
+func readBatchApuestasBytes(scanner *bufio.Scanner, maxAmount int, leftover *string) ([]byte, int, error) {
+	var payload []byte
 	count := 0
-	for count < maxAmount && scanner.Scan() {
-		line := scanner.Text()
-		fields := strings.Split(line, ",")
-		if len(fields) < 5 {
-			return nil, fmt.Errorf("invalid line: %s", line)
+	// If there is something leftover, then process it first
+	if *leftover != "" {
+		line := *leftover
+		*leftover = ""
+		apuesta, err := ApuestaFromCSVLine(line)
+		if err != nil {
+			return nil, 0, err
 		}
-		apuesta := Apuesta{
-			Nombre:     strings.TrimSpace(fields[0]),
-			Apellido:   strings.TrimSpace(fields[1]),
-			Documento:  strings.TrimSpace(fields[2]),
-			Nacimiento: strings.TrimSpace(fields[3]),
-			Numero:     strings.TrimSpace(fields[4]),
+		serialized, err := SerializeApuesta(apuesta)
+		if err != nil {
+			return nil, 0, err
 		}
-		apuestas = append(apuestas, apuesta)
+		// There is no need to check if the payload is too big, as it was already checked before
+		payload = append(payload, serialized...)
 		count++
 	}
-	if err := scanner.Err(); err != nil {
-		return nil, err
+
+	for count < maxAmount && scanner.Scan() {
+		line := scanner.Text()
+		apuesta, err := ApuestaFromCSVLine(line)
+		if err != nil {
+			return nil, 0, err
+		}
+		serialized, err := SerializeApuesta(apuesta)
+		if err != nil {
+			return nil, count, err
+		}
+		if len(serialized) > maxPayloadSize {
+			log.Errorf("action: serialize_apuesta | result: skip | error: apuesta exceeds max payload size: %v", line)
+			continue
+		}
+		// Checks if the payload is too big
+		if len(payload)+len(serialized) <= maxPayloadSize {
+			payload = append(payload, serialized...)
+			count++
+		} else {
+			*leftover = line
+			break
+		}
 	}
-	return apuestas, nil
+	if err := scanner.Err(); err != nil {
+		return nil, count, err
+	}
+	return payload, count, nil
 }
+
 
 // StartClientLoop Send messages to the client until some time threshold is met
 func (c *Client) StartClientLoop(ctx context.Context) {
@@ -118,7 +142,7 @@ func (c *Client) StartClientLoop(ctx context.Context) {
 	}
 	defer file.Close()
 	scanner := bufio.NewScanner(file)
-
+	var leftover string
 	for msgID := 1; msgID <= c.config.LoopAmount; msgID++ {
 		select {
 		case <-ctx.Done():
@@ -128,29 +152,21 @@ func (c *Client) StartClientLoop(ctx context.Context) {
 		default:
 		}
 
-		batch, err := readBatchApuestas(scanner, c.config.BatchMaxAmount)
+		msgData, batchCount, err := readBatchApuestasBytes(scanner, c.config.BatchMaxAmount, &leftover)
 		if err != nil {
 			log.Errorf("action: read_batch | result: fail | client_id: %v | error: %v", c.config.ID, err)
 			return
 		}
-		if len(batch) == 0 {
+		if batchCount == 0 {
 			log.Infof("action: no_more_apuestas | result: finish | client_id: %v", c.config.ID)
 			return
 		}
-		log.Infof("action: batch_read | result: success | client_id: %v | cantidad: %d", c.config.ID, len(batch))
+		log.Infof("action: batch_read | result: success | client_id: %v | bets_sent: %d", c.config.ID, len(msgData))
 		// Create the connection the server in every loop iteration. Send an
 		c.createClientSocket()
-		apuestaToSend := batch[0]
 
-		// Load config and serializes it
-		msgData, err := SerializeApuesta(apuestaToSend)
-		if err != nil {
-			log.Errorf("action: serialize_apuesta | result: fail | client_id: %v | error: %v", c.config.ID, err)
-			c.conn.Close()
-			return
-		}
 		packet := NewPacket(msgData)
-		log.Info("action: serialize_apuesta | result: success")
+		log.Infof("action: Packet created | result: success | size: %v", len(packet.Data))
 
 		// Writes every byte, fails otherwise
 		if err := packet.Write(c.conn); err != nil {
@@ -158,7 +174,7 @@ func (c *Client) StartClientLoop(ctx context.Context) {
 			c.conn.Close()
 			return
 		}
-		log.Info("action: send_apuesta | result: success")
+		log.Info("action: batch_sent | result: success")
 
 		// Handles context cancel, error and successful reads.
 		data, err := readPacketData(ctx, c.conn)
@@ -181,8 +197,7 @@ func (c *Client) StartClientLoop(ctx context.Context) {
 			c.config.ID,
 			string(data),
 		)
-		log.Infof("action: apuesta_enviada | result: success | dni: %v | numero: %v", c.config.Apuesta.Documento, c.config.Apuesta.Numero)
-		// Wait a time between sending one message and the next one
+
 		select {
 		case <-ctx.Done():
 			// If context is cancelled, stop the sleep

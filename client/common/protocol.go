@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"strings"
 )
 
 type FieldType byte
@@ -80,18 +81,22 @@ func SerializeApuesta(apuesta Apuesta) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func SerializeApuestaWithLength(apuesta Apuesta) ([]byte, error) {
-    msg, err := SerializeApuesta(apuesta)
-	if err != nil {
-		return msg, err
+// Reads a CSV line and returns an Apuesta struct
+func ApuestaFromCSVLine(line string) (apuesta Apuesta, err error) {
+	fields := strings.Split(line, ",")
+	if len(fields) < 5 {
+		err = fmt.Errorf("invalid line: %s", line)
+		return
 	}
-    total := len(msg)
-	// Header will always be 4 bytes
-    header := make([]byte, 4)
-    binary.BigEndian.PutUint32(header, uint32(total))
-    return append(header, msg...), nil
+	apuesta = Apuesta{
+		Nombre:     strings.TrimSpace(fields[0]),
+		Apellido:   strings.TrimSpace(fields[1]),
+		Documento:  strings.TrimSpace(fields[2]),
+		Nacimiento: strings.TrimSpace(fields[3]),
+		Numero:     strings.TrimSpace(fields[4]),
+	}
+	return apuesta, nil
 }
-
 
 func DeserializeApuesta(data []byte) (Apuesta, error) {
 	var apuesta Apuesta

@@ -23,13 +23,11 @@ func (p *Packet) Write(conn net.Conn) error {
 
 func ReadPacket(conn net.Conn) (*Packet, error) {
 	header := make([]byte, 4)
-	// Usamos io.ReadFull para leer exactamente 4 bytes del header.
 	if _, err := io.ReadFull(conn, header); err != nil {
 		return nil, err
 	}
 	totalLength := binary.BigEndian.Uint32(header)
 	data := make([]byte, totalLength)
-	// Leemos exactamente totalLength bytes.
 	if _, err := io.ReadFull(conn, data); err != nil {
 		return nil, err
 	}
