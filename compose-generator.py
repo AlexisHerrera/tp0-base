@@ -24,6 +24,9 @@ CLIENT_TEMPLATE="""  client{client_id}:
       - type: bind
         source: ./client/config.yaml
         target: /config.yaml
+      - type: bind
+        source: ./.data/agency-{client_id}.csv
+        target: /agency.csv
     environment:
       - CLI_ID={client_id}
       - CLI_NOMBRE=Santiago Lionel

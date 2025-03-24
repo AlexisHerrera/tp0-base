@@ -1,9 +1,13 @@
 package common
 
 import (
+	"bufio"
 	"context"
 	"errors"
+	"fmt"
 	"net"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/op/go-logging"
@@ -13,11 +17,12 @@ var log = logging.MustGetLogger("log")
 
 // ClientConfig Configuration used by the client
 type ClientConfig struct {
-	ID            string
-	ServerAddress string
-	LoopAmount    int
-	LoopPeriod    time.Duration
-	Apuesta       Apuesta
+	ID             string
+	ServerAddress  string
+	LoopAmount     int
+	LoopPeriod     time.Duration
+	Apuesta        Apuesta
+	BatchMaxAmount int
 }
 
 // Client Entity that encapsulates how
@@ -77,10 +82,43 @@ func readPacketData(ctx context.Context, conn net.Conn) ([]byte, error) {
 	}
 }
 
+func readBatchApuestas(scanner *bufio.Scanner, maxAmount int) ([]Apuesta, error) {
+	var apuestas []Apuesta
+	count := 0
+	for count < maxAmount && scanner.Scan() {
+		line := scanner.Text()
+		fields := strings.Split(line, ",")
+		if len(fields) < 5 {
+			return nil, fmt.Errorf("invalid line: %s", line)
+		}
+		apuesta := Apuesta{
+			Nombre:     strings.TrimSpace(fields[0]),
+			Apellido:   strings.TrimSpace(fields[1]),
+			Documento:  strings.TrimSpace(fields[2]),
+			Nacimiento: strings.TrimSpace(fields[3]),
+			Numero:     strings.TrimSpace(fields[4]),
+		}
+		apuestas = append(apuestas, apuesta)
+		count++
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	return apuestas, nil
+}
+
 // StartClientLoop Send messages to the client until some time threshold is met
 func (c *Client) StartClientLoop(ctx context.Context) {
 	// There is an autoincremental msgID to identify every message sent
 	// Messages if the message amount threshold has not been surpassed
+	file, err := os.Open("agency.csv")
+	if err != nil {
+		log.Criticalf("action: open_file | result: fail | client_id: %v | error: %v", c.config.ID, err)
+		return
+	}
+	defer file.Close()
+	scanner := bufio.NewScanner(file)
+
 	for msgID := 1; msgID <= c.config.LoopAmount; msgID++ {
 		select {
 		case <-ctx.Done():
@@ -89,11 +127,23 @@ func (c *Client) StartClientLoop(ctx context.Context) {
 			return
 		default:
 		}
+
+		batch, err := readBatchApuestas(scanner, c.config.BatchMaxAmount)
+		if err != nil {
+			log.Errorf("action: read_batch | result: fail | client_id: %v | error: %v", c.config.ID, err)
+			return
+		}
+		if len(batch) == 0 {
+			log.Infof("action: no_more_apuestas | result: finish | client_id: %v", c.config.ID)
+			return
+		}
+		log.Infof("action: batch_read | result: success | client_id: %v | cantidad: %d", c.config.ID, len(batch))
 		// Create the connection the server in every loop iteration. Send an
 		c.createClientSocket()
+		apuestaToSend := batch[0]
 
 		// Load config and serializes it
-		msgData, err := SerializeApuesta(c.config.Apuesta)
+		msgData, err := SerializeApuesta(apuestaToSend)
 		if err != nil {
 			log.Errorf("action: serialize_apuesta | result: fail | client_id: %v | error: %v", c.config.ID, err)
 			c.conn.Close()

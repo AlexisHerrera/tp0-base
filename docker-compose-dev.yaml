@@ -21,6 +21,9 @@ services:
       - type: bind
         source: ./client/config.yaml
         target: /config.yaml
+      - type: bind
+        source: ./.data/agency-1.csv
+        target: /agency.csv
     environment:
       - CLI_ID=1
       - CLI_NOMBRE=Santiago Lionel
