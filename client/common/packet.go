@@ -6,6 +6,8 @@ import (
 	"net"
 )
 
+const packetHeaderSize = 4
+
 type Packet struct {
 	Data []byte
 }
@@ -15,14 +17,14 @@ func NewPacket(data []byte) *Packet {
 }
 
 func (p *Packet) Write(conn net.Conn) error {
-	header := make([]byte, 4)
+	header := make([]byte, packetHeaderSize)
 	binary.BigEndian.PutUint32(header, uint32(len(p.Data)))
 	fullData := append(header, p.Data...)
 	return writeFull(conn, fullData)
 }
 
 func ReadPacket(conn net.Conn) (*Packet, error) {
-	header := make([]byte, 4)
+	header := make([]byte, packetHeaderSize)
 	if _, err := io.ReadFull(conn, header); err != nil {
 		return nil, err
 	}
@@ -35,7 +37,7 @@ func ReadPacket(conn net.Conn) (*Packet, error) {
 }
 
 func (p *Packet) Bytes() []byte {
-	header := make([]byte, 4)
+	header := make([]byte, packetHeaderSize)
 	binary.BigEndian.PutUint32(header, uint32(len(p.Data)))
 	return append(header, p.Data...)
 }

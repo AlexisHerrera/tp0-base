@@ -5,12 +5,13 @@ from typing import Union
 
 
 class Packet:
+    HEADER_SIZE = 4
     def __init__(self, data: bytes):
         self.data = data
 
     @classmethod
     def read_packet(cls, stream: Union[socket.socket, BytesIO]) -> 'Packet':
-        header = cls.read_exact(stream, 4)
+        header = cls.read_exact(stream, Packet.HEADER_SIZE)
         total_length = int.from_bytes(header, byteorder="big")
         data = cls.read_exact(stream, total_length)
         return cls(data)
@@ -34,7 +35,7 @@ class Packet:
     
     def write(self, conn: socket.socket) -> None:
         """Writes the packet to the socket, this avoids short writes"""
-        header = len(self.data).to_bytes(4, byteorder="big")
+        header = len(self.data).to_bytes(Packet.HEADER_SIZE, byteorder="big")
         full_data = header + self.data
         total_sent = 0
         while total_sent < len(full_data):
@@ -52,7 +53,7 @@ class Packet:
         total_length = len(self.data)
 
         while stream.tell() < total_length:
-            if total_length - stream.tell() < 4:
+            if total_length - stream.tell() < Packet.HEADER_SIZE:
                 break
             sub_packet = Packet.read_packet(stream)
             bytesList.append(sub_packet)
