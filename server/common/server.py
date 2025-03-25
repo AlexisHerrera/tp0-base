@@ -60,7 +60,7 @@ class Server:
             logging.info(f"action: receive_message | result: success | ip: {addr[0]} | data received: {len(batch_packet.data)} bytes")
             agency_number, packets = batch_packet.deserialize_batch()
             logging.info(f"action: deserialize_batch | result: success | agency_number: {agency_number} | packets: {len(packets)}")
-            bets = packets_to_bets(packets)
+            bets = packets_to_bets(agency_number, packets)
             if len(bets) == len(packets):
                 logging.info(f"action: apuesta_recibida | result: success | cantidad: {len(bets)}")
             else:
@@ -88,12 +88,12 @@ class Server:
         logging.info(f'action: accept_connections | result: success | ip: {addr[0]}')
         return c
 
-def packets_to_bets(packets: list[Packet]) -> list[Bet]:
+def packets_to_bets(agency: int, packets: list[Packet]) -> list[Bet]:
     bets: list[Bet] = []
     for packet in packets:
         try:
             apuesta = deserialize_apuesta(packet.data)
-            bet = Bet('0', apuesta.nombre, apuesta.apellido, apuesta.documento, apuesta.nacimiento, apuesta.numero)
+            bet = Bet(str(agency), apuesta.nombre, apuesta.apellido, apuesta.documento, apuesta.nacimiento, apuesta.numero)
             bets.append(bet)
         except ValueError as e:
             logging.error(f"action: deserialize_apuesta | result: fail | error: {e}")
