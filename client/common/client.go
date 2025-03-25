@@ -147,7 +147,7 @@ func (c *Client) StartClientLoop(ctx context.Context) {
 	defer file.Close()
 	scanner := bufio.NewScanner(file)
 	var leftover string
-	for msgID := 1; msgID <= c.config.LoopAmount; msgID++ {
+	for {
 		select {
 		case <-ctx.Done():
 			// If context is cancelled, stop the loop
