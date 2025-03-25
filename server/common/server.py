@@ -58,7 +58,8 @@ class Server:
             batch_packet: Packet = Packet.read_packet(client_sock)
             addr = client_sock.getpeername()
             logging.info(f"action: receive_message | result: success | ip: {addr[0]} | data received: {len(batch_packet.data)} bytes")
-            packets: list[Packet] = batch_packet.deserialize_batch()
+            agency_number, packets = batch_packet.deserialize_batch()
+            logging.info(f"action: deserialize_batch | result: success | agency_number: {agency_number} | packets: {len(packets)}")
             bets = packets_to_bets(packets)
             if len(bets) == len(packets):
                 logging.info(f"action: apuesta_recibida | result: success | cantidad: {len(bets)}")

@@ -13,7 +13,8 @@ import (
 
 var log = logging.MustGetLogger("log")
 
-const maxPayloadSize = 8*1024 - 4
+// 8kb - 4 bytes of header - 4 bytes of agency ID
+const maxPayloadSize = 8*1024 - 8
 
 // ClientConfig Configuration used by the client
 type ClientConfig struct {
@@ -162,13 +163,13 @@ func (c *Client) StartClientLoop(ctx context.Context) {
 			return
 		}
 		if batchCount == 0 {
-			return
+			break
 		}
 		log.Infof("action: batch_read | result: success | client_id: %v | bets_sent: %d", c.config.ID, batchCount)
 		// Create the connection the server in every loop iteration. Send an
 		c.createClientSocket()
 
-		packet := NewPacket(msgData)
+		packet := NewBatchPacket(c.config.ID, msgData)
 		log.Infof("action: Packet created | result: success | size: %v", len(packet.Data))
 
 		// Writes every byte, fails otherwise
