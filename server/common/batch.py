@@ -15,26 +15,25 @@ class Batch:
         self.packets: list['Packet'] = packets
         self.payload_size: int = payload_size
 
-    def read_batch(stream: socket.socket):
+    def from_message_payload(payload: bytes) -> 'Batch':
         """
-        Reads the batch from the socket
+        Transforms a payload into a Batch object
         """
-        packet = Packet.read_packet(stream)
-        agency_number, packets = Batch.__deserialize_batch(packet)
-        return Batch(agency_number, packets, len(packet.data))
+        agency_number, packets = Batch.__deserialize_batch(payload)
+        return Batch(agency_number, packets, len(payload))
 
-    def __deserialize_batch(packet: Packet):
+    def __deserialize_batch(payload: bytes) -> tuple[int, list['Packet']]:
         """
         Deserializes a batch of packets from the current packet data
         """
-        stream = BytesIO(packet.data)
+        stream = BytesIO(payload)
         agency_bytes = stream.read(Batch.AGENCY_NUMBER_SIZE)
         if len(agency_bytes) < Batch.AGENCY_NUMBER_SIZE:
             raise ValueError("Not enough bytes to read agency number")
         agency_number = int.from_bytes(agency_bytes, byteorder="big")
 
         bytesList: list['Packet'] = []
-        total_length = len(packet.data)
+        total_length = len(payload)
 
         while stream.tell() < total_length:
             if total_length - stream.tell() < Packet.HEADER_SIZE:

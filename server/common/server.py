@@ -2,9 +2,7 @@ import socket
 import logging
 import signal
 
-from .batch import Batch
-
-from .utils import store_bets
+from .message import Message
 from .packet import *
 
 class Server:
@@ -57,15 +55,8 @@ class Server:
         """
         try:
             addr = client_sock.getpeername()
-            batch: Batch = Batch.read_batch(client_sock)
-            logging.info(f"action: receive_message | result: success | ip: {addr[0]} | payload size: {batch.payload_size} bytes")
-            logging.info(f"action: deserialize_batch | result: success | agency_number: {batch.agency_number} | packets: {len(batch.packets)}")
-            bets = batch.packets_to_bets()
-            if len(bets) == len(batch.packets):
-                logging.info(f"action: apuesta_recibida | result: success | cantidad: {len(bets)}")
-            else:
-                logging.error(f"action: apuesta_recibida | result: fail | cantidad: ${len(bets)}")
-            store_bets(bets)
+            message: Message = Message.read_message(client_sock)
+            message.process(addr)
             confirmationPacket = Packet("OK\n".encode("utf-8"))
             confirmationPacket.write(client_sock)
         except OSError as e:

@@ -1,6 +1,7 @@
 import socket
 from io import BytesIO
 from typing import Union
+from .communication import read_exact
 
 
 class Packet:
@@ -10,27 +11,10 @@ class Packet:
 
     @classmethod
     def read_packet(cls, stream: Union[socket.socket, BytesIO]) -> 'Packet':
-        header = cls.read_exact(stream, Packet.HEADER_SIZE)
+        header = read_exact(stream, Packet.HEADER_SIZE)
         total_length = int.from_bytes(header, byteorder="big")
-        data = cls.read_exact(stream, total_length)
+        data = read_exact(stream, total_length)
         return cls(data)
-
-    @staticmethod
-    def read_exact(source: Union[socket.socket, BytesIO], n: int) -> bytes:
-        data = bytearray()
-        if hasattr(source, "recv"):
-            while len(data) < n:
-                chunk = source.recv(n - len(data))
-                if not chunk:
-                    raise RuntimeError("Connection closed before reading expected bytes")
-                data.extend(chunk)
-        else:
-            while len(data) < n:
-                chunk = source.read(n - len(data))
-                if not chunk:
-                    raise RuntimeError("EOF reached before reading expected bytes")
-                data.extend(chunk)
-        return bytes(data)
     
     def write(self, conn: socket.socket) -> None:
         """Writes the packet to the socket, this avoids short writes"""

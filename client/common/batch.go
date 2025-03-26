@@ -32,10 +32,10 @@ func (b *Batch) Serialize() []byte {
 	}
 	agencyBytes := make([]byte, agencyIDSize)
 	binary.BigEndian.PutUint32(agencyBytes, uint32(idInt))
-	finalPayload := append(agencyBytes, b.Payload...)
-	// Wraps it in a packet just to know how long the batch will be
-	packet := NewPacket(finalPayload)
-	return packet.Serialize()
+	batchContent := append(agencyBytes, b.Payload...)
+	batchMessage := NewBatchMessage(batchContent)
+	// 1 byte for the message type, 4 bytes for the payload length, and the payload itself
+	return batchMessage.Serialize()
 }
 
 func (b *Batch) Write(conn net.Conn) error {
