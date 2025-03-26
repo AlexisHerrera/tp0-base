@@ -113,7 +113,7 @@ func (c *Client) StartClientLoop(ctx context.Context) {
 		// Create the connection the server in every loop iteration. Send an
 		c.createClientSocket()
 
-		log.Infof("action: Packet created | result: success | payload size: %v", len(batch.Payload))
+		log.Infof("action: Packet created | result: success | payload size: %v", batch.GetFinalPayloadInBytes())
 
 		// Writes every byte, fails otherwise
 		if err := batch.Write(c.conn); err != nil {

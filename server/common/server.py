@@ -2,9 +2,10 @@ import socket
 import logging
 import signal
 
-from .utils import store_bets, Bet
+from .batch import Batch
+
+from .utils import store_bets
 from .packet import *
-from .protocol import deserialize_apuesta
 
 class Server:
     def __init__(self, port, listen_backlog):
@@ -55,13 +56,12 @@ class Server:
         client socket will also be closed
         """
         try:
-            batch_packet: Packet = Packet.read_packet(client_sock)
             addr = client_sock.getpeername()
-            logging.info(f"action: receive_message | result: success | ip: {addr[0]} | data received: {len(batch_packet.data)} bytes")
-            agency_number, packets = batch_packet.deserialize_batch()
-            logging.info(f"action: deserialize_batch | result: success | agency_number: {agency_number} | packets: {len(packets)}")
-            bets = packets_to_bets(agency_number, packets)
-            if len(bets) == len(packets):
+            batch: Batch = Batch.read_batch(client_sock)
+            logging.info(f"action: receive_message | result: success | ip: {addr[0]} | payload size: {batch.payload_size} bytes")
+            logging.info(f"action: deserialize_batch | result: success | agency_number: {batch.agency_number} | packets: {len(batch.packets)}")
+            bets = batch.packets_to_bets()
+            if len(bets) == len(batch.packets):
                 logging.info(f"action: apuesta_recibida | result: success | cantidad: {len(bets)}")
             else:
                 logging.error(f"action: apuesta_recibida | result: fail | cantidad: ${len(bets)}")
@@ -87,14 +87,3 @@ class Server:
         c, addr = self._server_socket.accept()
         logging.info(f'action: accept_connections | result: success | ip: {addr[0]}')
         return c
-
-def packets_to_bets(agency: int, packets: list[Packet]) -> list[Bet]:
-    bets: list[Bet] = []
-    for packet in packets:
-        try:
-            apuesta = deserialize_apuesta(packet.data)
-            bet = Bet(str(agency), apuesta.nombre, apuesta.apellido, apuesta.documento, apuesta.nacimiento, apuesta.numero)
-            bets.append(bet)
-        except ValueError as e:
-            logging.error(f"action: deserialize_apuesta | result: fail | error: {e}")
-    return bets

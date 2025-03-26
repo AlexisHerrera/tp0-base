@@ -3,10 +3,8 @@ from io import BytesIO
 from typing import Union
 
 
-
 class Packet:
     HEADER_SIZE = 4
-    AGENCY_NUMBER_SIZE = 4
     def __init__(self, data: bytes):
         self.data = data
 
@@ -45,23 +43,3 @@ class Packet:
                 raise RuntimeError("Connection closed")
             total_sent += sent
     
-    def deserialize_batch(self):
-        """
-        Deserializes a batch of packets from the current packet data
-        """
-        stream = BytesIO(self.data)
-        agency_bytes = stream.read(Packet.AGENCY_NUMBER_SIZE)
-        if len(agency_bytes) < Packet.AGENCY_NUMBER_SIZE:
-            raise ValueError("Not enough bytes to read agency number")
-        agency_number = int.from_bytes(agency_bytes, byteorder="big")
-
-        bytesList: list['Packet'] = []
-        total_length = len(self.data)
-
-        while stream.tell() < total_length:
-            if total_length - stream.tell() < Packet.HEADER_SIZE:
-                break
-            sub_packet = Packet.read_packet(stream)
-            bytesList.append(sub_packet)
-
-        return agency_number,bytesList

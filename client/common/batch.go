@@ -21,6 +21,10 @@ func (b *Batch) GetCount() int {
 	return b.Count
 }
 
+func (b *Batch) GetFinalPayloadInBytes() int {
+	return len(b.Payload) + agencyIDSize
+}
+
 func (b *Batch) Serialize() []byte {
 	idInt, err := strconv.Atoi(b.AgencyID)
 	if err != nil {

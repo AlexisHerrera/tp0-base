@@ -1,4 +1,4 @@
-from common.protocol import *
+from server.common.apuesta import *
 import unittest
 
 class TestProtocol(unittest.TestCase):
