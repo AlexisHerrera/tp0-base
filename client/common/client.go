@@ -13,9 +13,6 @@ import (
 
 var log = logging.MustGetLogger("log")
 
-// 8kb - 4 bytes of header - 4 bytes of agency ID
-const maxPayloadSize = 8*1024 - 8
-
 // ClientConfig Configuration used by the client
 type ClientConfig struct {
 	ID             string
@@ -83,59 +80,6 @@ func readPacketData(ctx context.Context, conn net.Conn) ([]byte, error) {
 	}
 }
 
-func readBatchApuestasBytes(scanner *bufio.Scanner, maxAmount int, leftover *string) ([]byte, int, error) {
-	var payload []byte
-	count := 0
-	// If there is something leftover, then process it first
-	if *leftover != "" {
-		line := *leftover
-		*leftover = ""
-		apuesta, err := ApuestaFromCSVLine(line)
-		if err != nil {
-			return nil, 0, err
-		}
-		serialized, err := SerializeApuesta(apuesta)
-		if err != nil {
-			return nil, 0, err
-		}
-		subpacket := NewPacket(serialized)
-		subPacketBytes := subpacket.Bytes()
-		// There is no need to check if the payload is too big, as it was already checked before
-		payload = append(payload, subPacketBytes...)
-		count++
-	}
-
-	for count < maxAmount && scanner.Scan() {
-		line := scanner.Text()
-		apuesta, err := ApuestaFromCSVLine(line)
-		if err != nil {
-			return nil, 0, err
-		}
-		serialized, err := SerializeApuesta(apuesta)
-		if err != nil {
-			return nil, count, err
-		}
-		if len(serialized) > maxPayloadSize {
-			log.Errorf("action: serialize_apuesta | result: skip | error: apuesta exceeds max payload size: %v", line)
-			continue
-		}
-		subpacket := NewPacket(serialized)
-		subPacketBytes := subpacket.Bytes()
-		// Checks if the payload is too big
-		if len(payload)+len(subPacketBytes) <= maxPayloadSize {
-			payload = append(payload, subPacketBytes...)
-			count++
-		} else {
-			*leftover = line
-			break
-		}
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, count, err
-	}
-	return payload, count, nil
-}
-
 // StartClientLoop Send messages to the client until some time threshold is met
 func (c *Client) StartClientLoop(ctx context.Context) {
 	// There is an autoincremental msgID to identify every message sent
@@ -157,23 +101,22 @@ func (c *Client) StartClientLoop(ctx context.Context) {
 		default:
 		}
 
-		msgData, batchCount, err := readBatchApuestasBytes(scanner, c.config.BatchMaxAmount, &leftover)
+		batch, err := ReadBatch(scanner, c.config, &leftover)
 		if err != nil {
 			log.Errorf("action: read_batch | result: fail | client_id: %v | error: %v", c.config.ID, err)
 			return
 		}
-		if batchCount == 0 {
+		if batch.GetCount() == 0 {
 			break
 		}
-		log.Infof("action: batch_read | result: success | client_id: %v | bets_sent: %d", c.config.ID, batchCount)
+		log.Infof("action: batch_read | result: success | client_id: %v | bets_sent: %d", c.config.ID, batch.GetCount())
 		// Create the connection the server in every loop iteration. Send an
 		c.createClientSocket()
 
-		packet := NewBatchPacket(c.config.ID, msgData)
-		log.Infof("action: Packet created | result: success | size: %v", len(packet.Data))
+		log.Infof("action: Packet created | result: success | payload size: %v", len(batch.Payload))
 
 		// Writes every byte, fails otherwise
-		if err := packet.Write(c.conn); err != nil {
+		if err := batch.Write(c.conn); err != nil {
 			log.Errorf("action: send_apuesta | result: fail | client_id: %v | error: %v", c.config.ID, err)
 			c.conn.Close()
 			return
