@@ -6,6 +6,3 @@ bin/
 
 # jetbrains
 .idea
-
-# data
-.data
