@@ -80,6 +80,62 @@ func readPacketData(ctx context.Context, conn net.Conn) ([]byte, error) {
 	}
 }
 
+func (c *Client) FinalizeAndQueryWinners(ctx context.Context) {
+	delay := 2 * time.Second
+
+	for {
+		// Si se recibe SIGTERM se termina.
+		select {
+		case <-ctx.Done():
+			log.Infof("action: consulta_ganadores | result: cancelled | client_id: %v", c.config.ID)
+			return
+		default:
+		}
+
+		if err := c.createClientSocket(); err != nil {
+			log.Criticalf("action: create_socket | result: fail | client_id: %v | error: %v", c.config.ID, err)
+			return
+		}
+
+		consulta := NewConsultaMessage(c.config.ID)
+		if err := consulta.Write(c.conn); err != nil {
+			log.Errorf("action: send_consulta | result: fail | client_id: %v | error: %v", c.config.ID, err)
+			c.conn.Close()
+			return
+		}
+		log.Infof("action: send_consulta | result: success | client_id: %v", c.config.ID)
+
+		msg, err := ReadMessage(c.conn)
+		c.conn.Close()
+		if err != nil {
+			log.Errorf("action: read_message | result: fail | client_id: %v | error: %v", c.config.ID, err)
+			return
+		}
+
+		baseMsg, ok := msg.(*BaseMessage)
+		if !ok || baseMsg.MsgType != MsgTypeRespuesta {
+			log.Errorf("action: read_message | result: fail | client_id: %v | unexpected msg type: %v", c.config.ID, baseMsg.MsgType)
+			return
+		}
+
+		// Si el payload está vacío, no hay ganadores aún
+		if len(baseMsg.Payload) == 0 {
+			log.Infof("action: consulta_ganadores | result: in_progress | client_id: %v | waiting %v", c.config.ID, delay)
+			time.Sleep(delay)
+			delay *= 2
+			continue
+		}
+
+		winners, err := ParseRespuestaPayload(baseMsg.Payload)
+		if err != nil {
+			log.Errorf("action: parse_respuesta | result: fail | client_id: %v | error: %v", c.config.ID, err)
+			return
+		}
+		log.Infof("action: consulta_ganadores | result: success | cant_ganadores: %d | client_id: %v", len(winners), c.config.ID)
+		return
+	}
+}
+
 // StartClientLoop Send messages to the client until some time threshold is met
 func (c *Client) StartClientLoop(ctx context.Context) {
 	// There is an autoincremental msgID to identify every message sent
@@ -154,4 +210,5 @@ func (c *Client) StartClientLoop(ctx context.Context) {
 		}
 	}
 	log.Infof("action: loop_finished | result: success | client_id: %v", c.config.ID)
+	c.FinalizeAndQueryWinners(ctx)
 }
