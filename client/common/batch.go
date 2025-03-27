@@ -60,9 +60,13 @@ func ReadBatch(scanner *bufio.Scanner, config ClientConfig, leftover *string) (*
 		}
 		subpacket := NewPacket(serialized)
 		subPacketBytes := subpacket.Serialize()
-		// There is no need to check if the payload is too big, as it was already checked before
-		payload = append(payload, subPacketBytes...)
-		count++
+		// Check if the payload is too big, if it is, then discard the leftover
+		if len(subPacketBytes) > maxPayloadSize {
+			log.Errorf("action: serialize_apuesta | result: skip | error: apuesta exceeds max payload size: %v", line)
+		} else {
+			payload = append(payload, subPacketBytes...)
+			count++
+		}
 	}
 	// Reads the rest of the lines
 	for count < config.BatchMaxAmount && scanner.Scan() {
