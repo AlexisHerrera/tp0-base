@@ -9,9 +9,10 @@ import (
 )
 
 const (
-	MsgTypeBatchBet  byte = 1
-	MsgTypeConsulta  byte = 2
-	MsgTypeRespuesta byte = 3
+	MsgTypeBatchBet        byte = 1
+	MsgTypeConsulta        byte = 2
+	MsgTypeRespuestaWinner byte = 3
+	MsgTypeRespuestaWait   byte = 4
 )
 
 type Message interface {

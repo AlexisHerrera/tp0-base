@@ -113,13 +113,13 @@ func (c *Client) FinalizeAndQueryWinners(ctx context.Context) {
 		}
 
 		baseMsg, ok := msg.(*BaseMessage)
-		if !ok || baseMsg.MsgType != MsgTypeRespuesta {
+		if !ok || (baseMsg.MsgType != MsgTypeRespuestaWinner && baseMsg.MsgType != MsgTypeRespuestaWait) {
 			log.Errorf("action: read_message | result: fail | client_id: %v | unexpected msg type: %v", c.config.ID, baseMsg.MsgType)
 			return
 		}
 
-		// Si el payload está vacío, no hay ganadores aún
-		if len(baseMsg.Payload) == 0 {
+		// Si es de tipo MsgTypeRespuestaWait, se espera y se vuelve a consultar
+		if baseMsg.MsgType == MsgTypeRespuestaWait {
 			log.Infof("action: consulta_ganadores | result: in_progress | client_id: %v | waiting: %v", c.config.ID, delay)
 			time.Sleep(delay)
 			delay *= 2

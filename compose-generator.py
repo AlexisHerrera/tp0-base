@@ -12,6 +12,7 @@ services:
         target: /config.ini
     environment:
       - PYTHONUNBUFFERED=1
+      - AGENCIES={number_of_clients}
     networks:
       - testing_net
 """
@@ -55,9 +56,10 @@ def main():
     for client_id in range(1, int(number_of_clients) + 1):
         template_completed = CLIENT_TEMPLATE.format(client_id=client_id)
         clients_text += template_completed + '\n'
-
+    
+    services_text_replaced = SERVICES_TEXT.format(number_of_clients=int(number_of_clients))
     with open(filename, "w") as file:
-        final_text = SERVICES_TEXT + '\n' + clients_text + NETWORKS_TEXT
+        final_text = services_text_replaced + '\n' + clients_text + NETWORKS_TEXT
         file.write(final_text)
 
 if __name__ == '__main__':

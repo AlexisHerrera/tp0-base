@@ -5,7 +5,8 @@ from .communication import read_exact
 class Message:
     MSG_TYPE_BATCH_BET = 1
     MSG_TYPE_CONSULTA = 2
-    MSG_TYPE_RESPUESTA = 3
+    MSG_TYPE_RESPUESTA_GANADOR = 3
+    MSG_TYPE_RESPUESTA_WAIT = 4
 
     def __init__(self, msg_type: int, payload: bytes):
         self.msg_type = msg_type
@@ -29,5 +30,5 @@ class Message:
         """Writes the message to the socket"""
         header = bytes([self.msg_type]) + len(self.payload).to_bytes(4, byteorder="big")
         conn.sendall(header + self.payload)
-        
+
     

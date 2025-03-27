@@ -1,6 +1,7 @@
 import socket
 import logging
 import signal
+import os
 
 from .consulta import build_respuesta_message, parse_agency_number
 from .message import Message
@@ -16,7 +17,8 @@ class Server:
         self._server_socket.listen(listen_backlog)
         self._alive = True
         signal.signal(signal.SIGTERM, self.exit_gracefully)
-        self._threshold = 2
+        self._threshold = int(os.getenv("AGENCIES", "5"))
+        logging.info(f"action: server_start | result: success | port: {port} | backlog: {listen_backlog} | threshold: {self._threshold}")
         self._agencies_that_finished = set()
         self._sorteo_done = False
 
@@ -91,6 +93,7 @@ class Server:
         
         if agency_number not in self._agencies_that_finished:
             self._agencies_that_finished.add(agency_number)
+            logging.info(f"action: agencies_finished | result: success | agencies: {self._agencies_that_finished}")
         
         # Si finalizó el sorteo, hacer el sorteo
         if len(self._agencies_that_finished) >= self._threshold and not self._sorteo_done:
@@ -111,7 +114,7 @@ class Server:
             self._results = results
             self._sorteo_done = True
         # Si ya termino el sorteo, se envian los ganadores de la agencia, sino se envia el payload vacio
-        winners = self._results.get(agency_number, []) if self._sorteo_done else []
+        winners = self._results.get(agency_number, []) if self._sorteo_done else None
         response = build_respuesta_message(winners)
         response.write_message(client_sock)
 
