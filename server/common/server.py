@@ -87,7 +87,7 @@ class Server:
         if agency_number is None:
             logging.error(f"action: consulta | result: fail | error: invalid agency number")
             return
-        logging.info(f"action: consulta | agency_number: {agency_number} | ip: {addr[0]}")
+        logging.info(f"action: consulta | result: success | agency_number: {agency_number} | ip: {addr[0]}")
         
         if agency_number not in self._agencies_that_finished:
             self._agencies_that_finished.add(agency_number)
