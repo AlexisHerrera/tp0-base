@@ -21,6 +21,7 @@ class Server:
         logging.info(f"action: server_start | result: success | port: {port} | backlog: {listen_backlog} | threshold: {self._threshold}")
         self._agencies_that_finished = set()
         self._sorteo_done = False
+        self._results = {}
 
     def exit_gracefully(self, signum, _frame):
         logging.info(f'action: SIGTERM_received | result: success | signum: {signum}')
