@@ -10,7 +10,7 @@ services:
         target: /config.ini
     environment:
       - PYTHONUNBUFFERED=1
-      - AGENCIES=3
+      - AGENCIES=5
     networks:
       - testing_net
 
@@ -73,6 +73,52 @@ services:
         target: /agency.csv
     environment:
       - CLI_ID=3
+      - CLI_NOMBRE=Santiago Lionel
+      - CLI_APELLIDO=Lorca
+      - CLI_DOCUMENTO=30904465
+      - CLI_NACIMIENTO=1999-03-17
+      - CLI_NUMERO=7574
+    networks:
+      - testing_net
+    depends_on:
+      - server
+
+  client4:
+    container_name: client4
+    image: client:latest
+    entrypoint: /client
+    volumes:
+      - type: bind
+        source: ./client/config.yaml
+        target: /config.yaml
+      - type: bind
+        source: ./.data/agency-4.csv
+        target: /agency.csv
+    environment:
+      - CLI_ID=4
+      - CLI_NOMBRE=Santiago Lionel
+      - CLI_APELLIDO=Lorca
+      - CLI_DOCUMENTO=30904465
+      - CLI_NACIMIENTO=1999-03-17
+      - CLI_NUMERO=7574
+    networks:
+      - testing_net
+    depends_on:
+      - server
+
+  client5:
+    container_name: client5
+    image: client:latest
+    entrypoint: /client
+    volumes:
+      - type: bind
+        source: ./client/config.yaml
+        target: /config.yaml
+      - type: bind
+        source: ./.data/agency-5.csv
+        target: /agency.csv
+    environment:
+      - CLI_ID=5
       - CLI_NOMBRE=Santiago Lionel
       - CLI_APELLIDO=Lorca
       - CLI_DOCUMENTO=30904465

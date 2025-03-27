@@ -1,7 +1,9 @@
+from concurrent.futures import ThreadPoolExecutor
 import socket
 import logging
 import signal
 import os
+import threading
 
 from .consulta import build_respuesta_message, parse_agency_number
 from .message import Message
@@ -22,6 +24,9 @@ class Server:
         self._agencies_that_finished = set()
         self._sorteo_done = False
         self._results = {}
+        self._lock = threading.Lock()
+        self._executor = ThreadPoolExecutor(max_workers=5)
+
 
     def exit_gracefully(self, signum, _frame):
         logging.info(f'action: SIGTERM_received | result: success | signum: {signum}')
@@ -45,7 +50,7 @@ class Server:
         while self._alive:
             try:
                 client_sock = self.__accept_new_connection()
-                self.__handle_client_connection(client_sock)
+                self._executor.submit(self.__handle_client_connection, client_sock)
             except OSError as e:
                 if not self._alive:
                     logging.info("action: loop stopped | result: success | reason: socket closed gracefully")
@@ -80,7 +85,8 @@ class Server:
             logging.info(f"action: apuesta_recibida | result: success | cantidad: {len(bets)}")
         else:
             logging.error(f"action: apuesta_recibida | result: fail | cantidad: ${len(bets)}")
-        store_bets(bets)
+        with self._lock:
+            store_bets(bets)
         confirmationPacket = Packet("OK\n".encode("utf-8"))
         confirmationPacket.write(client_sock)
 
@@ -91,30 +97,32 @@ class Server:
             logging.error(f"action: consulta | result: fail | error: invalid agency number")
             return
         logging.info(f"action: consulta | result: success | agency_number: {agency_number} | ip: {addr[0]}")
-        
-        if agency_number not in self._agencies_that_finished:
-            self._agencies_that_finished.add(agency_number)
-            logging.info(f"action: agencies_finished | result: success | agencies: {self._agencies_that_finished}")
-        
-        # Si finalizó el sorteo, hacer el sorteo
-        if len(self._agencies_that_finished) >= self._threshold and not self._sorteo_done:
-            logging.info("action: sorteo | result: success")
-            bets = list(load_bets())
-            results = {}
-            for bet in bets:
-                if has_won(bet):
-                    agency = int(bet.agency)
-                    if agency not in results:
-                        results[agency] = []
-                    try:
-                        doc = int(bet.document)
-                    except Exception as e:
-                        logging.error(f"action: sorteo | result: fail | error converting dni: {e}")
-                        continue
-                    results[agency].append(doc)
-            self._results = results
-            self._sorteo_done = True
+        with self._lock:
+            if agency_number not in self._agencies_that_finished:
+                self._agencies_that_finished.add(agency_number)
+                logging.info(f"action: agencies_finished | result: success | agencies: {self._agencies_that_finished}")
+            
+            # Si finalizó el sorteo, hacer el sorteo
+            if len(self._agencies_that_finished) >= self._threshold and not self._sorteo_done:
+                logging.info("action: sorteo | result: success")
+                bets = list(load_bets())
+                results = {}
+                for bet in bets:
+                    if has_won(bet):
+                        agency = int(bet.agency)
+                        if agency not in results:
+                            results[agency] = []
+                        try:
+                            doc = int(bet.document)
+                        except Exception as e:
+                            logging.error(f"action: sorteo | result: fail | error converting dni: {e}")
+                            continue
+                        results[agency].append(doc)
+                self._results = results
+                self._sorteo_done = True
         # Si ya termino el sorteo, se envian los ganadores de la agencia, sino se envia el payload vacio
+        # Como results se escribe 1 sola vez, luego es inmutable y por lo tanto seguro de leer
+        # es decir, nadie va a modificar results mientras se lee
         winners = self._results.get(agency_number, []) if self._sorteo_done else None
         response = build_respuesta_message(winners)
         response.write_message(client_sock)
