@@ -25,7 +25,7 @@ class Server:
         self._sorteo_done = False
         self._results = {}
         self._lock = threading.Lock()
-        self._executor = ThreadPoolExecutor(max_workers=5)
+        self._executor = ThreadPoolExecutor(max_workers=int(os.getenv("AGENCIES", "5")))
 
 
     def exit_gracefully(self, signum, _frame):
@@ -120,10 +120,11 @@ class Server:
                         results[agency].append(doc)
                 self._results = results
                 self._sorteo_done = True
-        # Si ya termino el sorteo, se envian los ganadores de la agencia, sino se envia el payload vacio
-        # Como results se escribe 1 sola vez, luego es inmutable y por lo tanto seguro de leer
-        # es decir, nadie va a modificar results mientras se lee
-        winners = self._results.get(agency_number, []) if self._sorteo_done else None
+            # Si ya termino el sorteo, se envian los ganadores de la agencia, sino se envia el payload vacio
+            # La siguiente linea podría ir fuera del lock. Ver que lo único que podría pasar es un error una lectura en medio de una escritura
+            # Pero el self._results = results y self._sorteo_done = True son atómicos (porque son asignaciones, no se puede escribir "medio puntero")
+            # Para asegurarnos que no haya problemas de concurrencia, lo dejamos dentro del lock
+            winners = self._results.get(agency_number, []) if self._sorteo_done else None
         response = build_respuesta_message(winners)
         response.write_message(client_sock)
 
