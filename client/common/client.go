@@ -120,7 +120,7 @@ func (c *Client) FinalizeAndQueryWinners(ctx context.Context) {
 
 		// Si el payload está vacío, no hay ganadores aún
 		if len(baseMsg.Payload) == 0 {
-			log.Infof("action: consulta_ganadores | result: in_progress | client_id: %v | waiting %v", c.config.ID, delay)
+			log.Infof("action: consulta_ganadores | result: in_progress | client_id: %v | waiting: %v", c.config.ID, delay)
 			time.Sleep(delay)
 			delay *= 2
 			continue
