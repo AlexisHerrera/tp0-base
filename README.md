@@ -4,6 +4,27 @@ En el presente repositorio se provee un esqueleto básico de cliente/servidor, e
 
  El cliente (Golang) y el servidor (Python) fueron desarrollados en diferentes lenguajes simplemente para mostrar cómo dos lenguajes de programación pueden convivir en el mismo proyecto con la ayuda de containers, en este caso utilizando [Docker Compose](https://docs.docker.com/compose/).
 
+## Documentación Protocolo Ej 7
+Para esta versión se implementaron las siguientes estructuras: Packet, Apuesta, Batch y Message.
+
+* Packet: Es un wrapper de un arreglo de bytes. Contiene un header y un payload. El header simplemente indica el tamaño en bytes del payload. El header siempre mide 4 bytes.
+Entonces para la comunicación siempre se leen/escriben 4 bytes primero y luego la cantidad de bytes que indica dicho header. Esto lo hace tanto el cliente como el servidor para comunicarse.
+* Apuesta: Para poder interpretar los bytes dentro del Packet, se utilizó el protocolo TLV. Se establecieron los campos que tiene una apuesta (Type: 1 byte), la longitud del valor (2 bytes) y el valor. Para ello se implementaron los metodos Serialize y Deserialize.
+* Batch: Un Batch contiene el AgencyID y un payload. En el payload van los Packet que contienen las Apuesta serializadas.
+* Message: Está compuesto por un Byte indicando el tipo de mensaje (Batch, Consulta, RespuestaWin, RespuestaWait) y su Payload. Al serializarse, es 1 byte para el tipo de mensaje, 4 para el largo del Payload y el Payload.
+
+Ejemplo de comunicación:
+1. El cliente primero lee Apuestas del CSV y las serializa (TLV).
+2. Una vez serializado, lo envuelve en un Packet. Ahora tiene una cabecera con el largo de toda la Apuesta serializada.
+3. Acumula en un arreglo, los Packet serializados a enviar en forma de bytes.
+4. A dicho arreglo lo junta con 4 bytes de AgencyID. Y a todo eso lo envuelve en un Message, del tipo MsgTypeBatchBet.
+5. El servidor lee el Message, el cual es de tipo MsgTypeBatchBet, y con ello puede identificar el tipo y el largo del payload.
+6. Deserializa el payload interpretandolo como un Batch (AgencyID + payload), por lo que lee 4 bytes para el AgencyID, y luego al payload empieza a Deserializarlo como un array de Packets.
+7. A cada Packet lo deserializa como una Apuesta (TLV), y al finalizar de procesar el batch responde con un Packet("OK")
+8. El cliente lee el OK y continua hasta finalizar todos las apuestas. Una vez finalizado, empieza con el envío de consultas del ganador. Arma un Message del tipo MsgTypeConsulta con el AgencyID como payload (4 bytes). Y lo envía al servidor
+9. El servidor, recibe esas consultas. En caso de que sea la primera vez que se recibe esa consulta, se agenda como que dicha agencia terminó de procesar las apuestas. Responde con un Message del tipo MsgTypeRespuestaWait en caso de que no se haya alcanzado el threshold de agencias finalizadas, o MsgTypeRespuestaWinner en caso de que ya se hayan sorteado los ganadores, con el payload como un array de documentos (4 bytes) de los ganadores de la agencia consultada.
+10. El cliente lee ese payload, imprime la cantidad de ganadores y finaliza el loop.
+
 ## Instrucciones de uso
 El repositorio cuenta con un **Makefile** que incluye distintos comandos en forma de targets. Los targets se ejecutan mediante la invocación de:  **make \<target\>**. Los target imprescindibles para iniciar y detener el sistema son **docker-compose-up** y **docker-compose-down**, siendo los restantes targets de utilidad para el proceso de depuración.
 
