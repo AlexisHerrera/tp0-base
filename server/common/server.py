@@ -27,8 +27,7 @@ class Server:
         self._lock = threading.Lock()
         self._executor = ThreadPoolExecutor(max_workers=int(os.getenv("AGENCIES", "5")))
         self._client_sockets = set()
-
-
+        self._client_sockets_lock = threading.Lock()
 
     def exit_gracefully(self, signum, _frame):
         logging.info(f'action: SIGTERM_received | result: success | signum: {signum}')
@@ -40,13 +39,13 @@ class Server:
             logging.info("action: socket_close | result: success")
         except OSError as e:
             logging.error("action: socket close | result: fail | error: {e}", e)
-        
-        for client_sock in self._client_sockets:
-            try:
-                client_sock.close()
-                logging.info("action: client_sock close | result: success")
-            except OSError as e:
-                logging.error("action: client_sock close | result: fail | error: {e}", e)
+        with self._client_sockets_lock:
+            for client_sock in self._client_sockets:
+                try:
+                    client_sock.close()
+                    logging.info("action: client_sock close | result: success")
+                except OSError as e:
+                    logging.error("action: client_sock close | result: fail | error: {e}", e)
         self._executor.shutdown(wait=False)
         logging.info("action: executor_shutdown | result: success")
 
@@ -78,14 +77,16 @@ class Server:
         client socket will also be closed
         """
         try:
-            self._client_sockets.add(client_sock)
+            with self._client_sockets_lock:
+                self._client_sockets.add(client_sock)
             message: Message = Message.read_message(client_sock)
             self.process(message, client_sock)
         except Exception as e:
             logging.error(f"action: receive_message | result: fail | error: {e}")
         finally:
             client_sock.close()
-            self._client_sockets.remove(client_sock)
+            with self._client_sockets_lock:
+                self._client_sockets.remove(client_sock)
             logging.info('action: client_sock close | result: success')
 
     def process_batch_bet(self, message: Message, client_sock):
