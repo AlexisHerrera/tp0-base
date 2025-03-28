@@ -2,7 +2,6 @@ package common
 
 import (
 	"encoding/binary"
-	"io"
 	"net"
 )
 
@@ -26,13 +25,13 @@ func ReadPacket(conn net.Conn) (*Packet, error) {
 	// First read the length of the data
 	// Then read the data itself
 	header := make([]byte, packetHeaderSize)
-	if _, err := io.ReadFull(conn, header); err != nil {
+	if err := readFull(conn, header); err != nil {
 		return nil, err
 	}
 	totalLength := binary.BigEndian.Uint32(header)
 	data := make([]byte, totalLength)
 	// ReadFull avoids short reads
-	if _, err := io.ReadFull(conn, data); err != nil {
+	if err := readFull(conn, data); err != nil {
 		return nil, err
 	}
 	return &Packet{Data: data}, nil
@@ -51,6 +50,19 @@ func writeFull(conn net.Conn, data []byte) error {
 	total := 0
 	for total < len(data) {
 		n, err := conn.Write(data[total:])
+		if err != nil {
+			return err
+		}
+		total += n
+	}
+	return nil
+}
+
+func readFull(conn net.Conn, data []byte) error {
+	// Read all the data from the connection, avoids short reads
+	total := 0
+	for total < len(data) {
+		n, err := conn.Read(data[total:])
 		if err != nil {
 			return err
 		}

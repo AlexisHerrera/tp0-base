@@ -3,7 +3,6 @@ package common
 import (
 	"encoding/binary"
 	"fmt"
-	"io"
 	"net"
 	"strconv"
 )
@@ -41,13 +40,13 @@ func (m *BaseMessage) Write(conn net.Conn) error {
 
 func ReadMessage(conn net.Conn) (Message, error) {
 	header := make([]byte, 5)
-	if _, err := io.ReadFull(conn, header); err != nil {
+	if err := readFull(conn, header); err != nil {
 		return nil, err
 	}
 	msgType := header[0]
 	payloadLen := binary.BigEndian.Uint32(header[1:])
 	payload := make([]byte, payloadLen)
-	if _, err := io.ReadFull(conn, payload); err != nil {
+	if err := readFull(conn, payload); err != nil {
 		return nil, err
 	}
 	return &BaseMessage{MsgType: msgType, Payload: payload}, nil
