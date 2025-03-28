@@ -10,6 +10,10 @@ Puede haber problemas de concurrencia para el set, así que se le puso un lock a
 En las partes donde no se ejecuta de forma paralela (calcular ganadores por ejemplo) tenemos locks así que tampoco podrían ser paralelas.
 O que respecto a las llamadas de red o IO, son despreciables en cuanto a tiempo de espera.
 
+# Otras aclaraciones
+1. Por qué no se usa read_full al parsear el csv: se utiliza `scanner *bufio.Scanner` y `scanner.Scan()` para leer las lineas, por defecto lee hasta que encuentra un `\n` y asegura que siempre te va a dar todo hasta ese limitador, por lo que no puede haber short reads.
+2. A partir del ej4 (donde aparecen las señales SIGTERM), el código original de la cátedra `createClientSocket` carga en `conn` el socket pese a no haber establecido conexión correctamente. Esto hace que si se quiere leer un mensaje o escribirlo, se genere un panic. Para evitar esto, se devuelve error en caso de que no haya habido una conexión.
+
 # Documentación de los ejercicios (5 al 8)
 Documento los protocolos de cada ejercicio. Es el mismo contenido que hay en cada rama pero unificado.
 
